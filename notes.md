@@ -122,3 +122,7 @@ This concept is applied to CQRS in the following manner. Let's say someone creat
 ### Axon
 
 ![](images/axon.avif)
+
+### Spring Cloud API Gateway
+
+- it has a built-in load balancer
