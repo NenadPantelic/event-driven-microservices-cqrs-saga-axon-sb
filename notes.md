@@ -166,6 +166,39 @@ docker run --name axonserver -p 8024:8024 -p 8124:8124 -v /home/nenad/Documents/
   ![](images/cqrs.png)
 
 - Aggregate class holds the current state of the object
+- command handler is a good place to validate commands
 
 #### Querying the objects
+
 - Client -> Controller -> Query Gateway -> Query Bus -> Query handler -> JPA repository -> Database
+
+#### Set based consistency
+
+- Command and query segments are separated. How do we validate e.g. if the user email already exists when creating a new
+  user
+- we can create a system command that will not be exposed outside to do the lookup in the database
+- message dispatch interceptor will intercept commands where the user email e.g. can be change (create account, update
+  account)
+- we will have a dedicated event handler to react on it and lookup the user email details in the database
+
+#### Error handling
+
+1. Rest controller
+2. Message interceptor
+3. Command handler<br>
+   `Controller advice`
+
+---
+
+4. Event handler -> subscribing `@ProcessingGroup` <br>
+   `@ExceptionHandler`
+
+- event processor
+    - a component that handles the provision of the events to the event handlers
+    - two types:
+        - tracking event processor - pull their message from a source using a thread that it manages itself (a different
+          thread); if something fails, it will retry processing the event using an incremental backoff period
+        - subscribing event processor - subscribe themselves to a source of events and are invoked by the thread manager
+          by the publishing mechanism (the same thread); will have the exception bubble up to the publishing component
+          of the event<br>
+          To roll back the propagated exception we should use a subscribing event processor 

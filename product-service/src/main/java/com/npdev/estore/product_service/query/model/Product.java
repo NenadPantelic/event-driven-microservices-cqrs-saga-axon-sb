@@ -23,6 +23,7 @@ public class Product implements Serializable {
     @Id
     @Column(unique = true)
     private String id;
+    @Column(unique = true)
     private String title;
     private BigDecimal price;
     private Integer quantity;

@@ -3,6 +3,7 @@ package com.npdev.estore.product_service.core.aggregate;
 import com.npdev.estore.product_service.command.CreateProductCommand;
 import com.npdev.estore.product_service.core.event.ProductCreatedEvent;
 import lombok.NoArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.axonframework.commandhandling.CommandHandler;
 import org.axonframework.eventsourcing.EventSourcingHandler;
@@ -13,6 +14,7 @@ import org.springframework.beans.BeanUtils;
 
 import java.math.BigDecimal;
 
+@Slf4j
 @Aggregate
 @NoArgsConstructor // required by Axon framework
 public class ProductAggregate {
@@ -39,11 +41,18 @@ public class ProductAggregate {
         BeanUtils.copyProperties(createProductCommand, productCreatedEvent);
         // dispatch the event that will trigger the EventSourcingHandler
         AggregateLifecycle.apply(productCreatedEvent);
+
+//        if (true) {
+//            log.info("ProductAggregate::Throwing an exception");
+//            throw new RuntimeException("Runtime exception");
+//        }
     }
 
     @EventSourcingHandler
     public void on(ProductCreatedEvent productCreatedEvent) {
         // initialize the latest state of the aggregate with the new event
+        // when the exception happens, an event sourcing handler is not called
+        // Axon does not immediately trigger this handler, but it stages it in case some error pops out
         productId = productCreatedEvent.getProductId();
         title = productCreatedEvent.getTitle();
         price = productCreatedEvent.getPrice();

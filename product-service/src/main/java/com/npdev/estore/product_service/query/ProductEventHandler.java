@@ -4,14 +4,32 @@ import com.npdev.estore.product_service.core.event.ProductCreatedEvent;
 import com.npdev.estore.product_service.query.model.Product;
 import com.npdev.estore.product_service.query.repository.ProductRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
+import org.axonframework.messaging.interceptors.ExceptionHandler;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @AllArgsConstructor
 @Component
+@ProcessingGroup("product-group")
 public class ProductEventHandler {
 
     private final ProductRepository productRepository;
+
+    @ExceptionHandler
+    public void handle(Exception e) throws Exception {
+        log.error("An Exception occurred: {}", e.getMessage(), e);
+        throw e;
+    }
+
+    @ExceptionHandler // pay attention, this is from Axon, not Spring
+    // it only handles the exceptions from the same event handling class
+    public void handle(IllegalArgumentException e) {
+        log.error("An IllegalArgumentException occurred: {}", e.getMessage(), e);
+        throw e;
+    }
 
     @EventHandler
     public void on(ProductCreatedEvent productCreatedEvent) {
@@ -22,7 +40,12 @@ public class ProductEventHandler {
                 .quantity(productCreatedEvent.getQuantity())
                 .build();
 
-        // this can fail
+        // this can fail; if it does, an exception handler above will react
         productRepository.save(product);
+
+        if (true) {
+            log.info("ProductEventHandler::Throwing an exception");
+            throw new RuntimeException("Runtime exception");
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.npdev.estore.product_service.command;
 
 import com.npdev.estore.product_service.command.dto.NewProduct;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.commandhandling.gateway.CommandGateway;
@@ -20,10 +21,8 @@ public class ProductCommandController {
     private final CommandGateway commandGateway;
 
     @PostMapping
-    public String createProduct(@RequestBody NewProduct newProduct) {
+    public String createProduct(@Valid @RequestBody NewProduct newProduct) {
         log.info("Received a request to create a product: {}", newProduct);
-        // this property holds the port that is set dynamically (random one)
-
         CreateProductCommand createProductCommand = CreateProductCommand.builder()
                 .title(newProduct.title())
                 .price(newProduct.price())
@@ -31,13 +30,14 @@ public class ProductCommandController {
                 .productId(UUID.randomUUID().toString())
                 .build();
 
-        String returnValue;
-        try {
-            returnValue = commandGateway.sendAndWait(createProductCommand);
-        } catch (Exception e) {
-            returnValue = e.getLocalizedMessage();
-        }
-        return String.format("POST createProduct; port = %s, result = %s", env.getProperty("local.server.port"), returnValue);
+        // dispatching a command
+        // we can intercept it and validate it
+        String returnValue = commandGateway.sendAndWait(createProductCommand);
+        return String.format(
+                "POST createProduct; port = %s, result = %s",
+                // this property holds the port that is set dynamically  (random one)
+                env.getProperty("local.server.port"), returnValue
+        );
     }
 
     @GetMapping
