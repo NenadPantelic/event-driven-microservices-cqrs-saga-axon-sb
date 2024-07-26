@@ -1,7 +1,7 @@
 package com.npdev.estore.order_service.command.controller;
 
 import com.npdev.estore.order_service.command.dto.NewOrder;
-import com.npdev.estore.order_service.command.dto.internal.CreateOrderCommand;
+import com.npdev.estore.order_service.command.CreateOrderCommand;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

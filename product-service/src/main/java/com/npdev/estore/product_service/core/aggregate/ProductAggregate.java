@@ -1,7 +1,9 @@
 package com.npdev.estore.product_service.core.aggregate;
 
+import com.npdev.estore.core.event.ProductReservedEvent;
 import com.npdev.estore.product_service.command.CreateProductCommand;
 import com.npdev.estore.product_service.core.event.ProductCreatedEvent;
+import com.npdev.estore.core.command.ReserveProductCommand;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -48,6 +50,25 @@ public class ProductAggregate {
 //        }
     }
 
+    @CommandHandler
+    public void handle(ReserveProductCommand reserveProductCommand) {
+        log.info("Handling ReserveProductCommand {}...", reserveProductCommand);
+        // axon loads the aggregate object for us, no need to query it,
+        // it will already contain the latest state
+        if (quantity < reserveProductCommand.getQuantity()) {
+            throw new IllegalArgumentException("Insufficient number of item in stock.");
+        }
+
+        ProductReservedEvent productReservedEvent = ProductReservedEvent.builder()
+                .orderId(reserveProductCommand.getOrderId())
+                .productId(reserveProductCommand.getProductId())
+                .userId(reserveProductCommand.getUserId())
+                .quantity(reserveProductCommand.getQuantity())
+                .build();
+
+        AggregateLifecycle.apply(productReservedEvent);
+    }
+
     @EventSourcingHandler
     public void on(ProductCreatedEvent productCreatedEvent) {
         // initialize the latest state of the aggregate with the new event
@@ -58,5 +79,10 @@ public class ProductAggregate {
         price = productCreatedEvent.getPrice();
         quantity = productCreatedEvent.getQuantity();
         // no business logic, just update the aggregate state
+    }
+
+    @EventSourcingHandler
+    public void on(ProductReservedEvent productReservedEvent) {
+        quantity -= productReservedEvent.getQuantity();
     }
 }

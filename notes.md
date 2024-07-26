@@ -7,10 +7,10 @@
 - in a microservice architecture, services are fine grained
 - the benefit of decomposing an application into different smaller services is that it improves modularity; an
   application is easier to understand, develop, test and become more resilient to architecture erosion
-- it parallelizes the development by enabling small autonomous teams to develop, deploy adn scale their respective
+- it enables the parallel development by enabling small autonomous teams to develop, deploy adn scale their respective
   services independently
 
-- It is a web service that is responsbile for one thing (single-responsibility principle)
+- It is a web service that is responsible for one thing (single-responsibility principle)
 - configured to work in the cloud and is easily scalable
 - database per service pattern
 - service discovery (register of the microservices that dynamically tracks their status and health)
@@ -201,4 +201,67 @@ docker run --name axonserver -p 8024:8024 -p 8124:8124 -v /home/nenad/Documents/
         - subscribing event processor - subscribe themselves to a source of events and are invoked by the thread manager
           by the publishing mechanism (the same thread); will have the exception bubble up to the publishing component
           of the event<br>
-          To roll back the propagated exception we should use a subscribing event processor 
+          To roll back the propagated exception we should use a subscribing event processor
+
+
+### SAGA
+
+#### Orchestration-based SAGA
+
+1. Order controller
+2. Order aggregate
+3. Order saga
+   - Handle OrderCreatedEvent
+   - ReserveProductCommand -> Product service
+   - ProductReservedEvent <- Product service
+   - ProcessPaymentCommand -> Payment service
+   - PaymentProcessedEvent <- Payment microservice
+
+Saga example:
+
+```java
+import com.npdev.estore.order_service.core.event.OrderCreatedEvent;
+import org.axonframework.commandhandling.gateway.CommandGateway;
+import org.axonframework.modelling.saga.EndSaga;
+import org.axonframework.modelling.saga.SagaEventHandler;
+import org.axonframework.modelling.saga.StartSaga;
+import org.axonframework.spring.stereotype.Saga;
+import org.springframework.beans.factory.annotation.Autowired;
+
+@Saga
+public class OrderSaga {
+
+    @Autowired
+    private transient CommandGateway commandGateway;
+
+    @StartSaga
+    @SagaEventHandler(associationProperty = "orderId")
+    public void handle(OrderCreatedEvent orderCreatedEvent) {
+        //
+    }
+
+    @SagaEventHandler(associationProperty = "productId")
+    public void handle(ProductReservedEvent productReservedEvent) {
+        //
+    }
+
+    @SagaEventHandler(associationProperty = "paymentId")
+    public void handle(PaymentProcessedEvent paymentProcessedEvent) {
+        //    
+    }
+
+    @EndSaga
+    @SagaEventHandler(associationProperty = "orderId")
+    public void handle(OrderApprovedEvent orderApprovedEvent) {
+        // 
+    }
+}
+// associationProperty is used to map the right saga instance to its event
+// multithreading system means that multiple sagas are being executed at the same time
+// associations can be made with
+
+// associateWith(key, value);
+// removeAssociation(key, value);
+// to end Saga programatically
+// end()
+```

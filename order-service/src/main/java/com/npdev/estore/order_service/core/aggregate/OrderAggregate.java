@@ -1,7 +1,9 @@
 package com.npdev.estore.order_service.core.aggregate;
 
-import com.npdev.estore.order_service.command.dto.internal.CreateOrderCommand;
+import com.npdev.estore.order_service.command.ApproveOrderCommand;
+import com.npdev.estore.order_service.command.CreateOrderCommand;
 import com.npdev.estore.order_service.command.dto.internal.OrderStatus;
+import com.npdev.estore.order_service.core.event.OrderApprovedEvent;
 import com.npdev.estore.order_service.core.event.OrderCreatedEvent;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,12 +66,29 @@ public class OrderAggregate {
         // initialize the latest state of the aggregate with the new event
         // when the exception happens, an event sourcing handler is not called
         // Axon does not immediately trigger this handler, but it stages it in case some error pops out
-        orderId = orderCreatedEvent.orderId();
-        productId = orderCreatedEvent.productId();
-        userId = orderCreatedEvent.userId();
-        orderId = orderCreatedEvent.orderId();
-        quantity = orderCreatedEvent.quantity();
-        addressId = orderCreatedEvent.addressId();
-        orderStatus = orderCreatedEvent.orderStatus();
+        productId = orderCreatedEvent.getProductId();
+        userId = orderCreatedEvent.getUserId();
+        orderId = orderCreatedEvent.getOrderId();
+        quantity = orderCreatedEvent.getQuantity();
+        addressId = orderCreatedEvent.getAddressId();
+        orderStatus = orderCreatedEvent.getOrderStatus();
+    }
+
+    @CommandHandler
+    public void handle(ApproveOrderCommand approveOrderCommand) {
+        log.info("Handling ApproveOrderCommand: {}", approveOrderCommand);
+        // Create and publish the OrderApprovedEvent
+        OrderApprovedEvent orderApprovedEvent = new OrderApprovedEvent(
+                approveOrderCommand.getOrderId(),
+                OrderStatus.APPROVED
+        );
+
+        AggregateLifecycle.apply(orderApprovedEvent);
+    }
+
+    @EventSourcingHandler
+    public void on(OrderApprovedEvent orderApprovedEvent) {
+        orderId = orderApprovedEvent.getOrderId();
+        orderStatus = orderApprovedEvent.getOrderStatus();
     }
 }

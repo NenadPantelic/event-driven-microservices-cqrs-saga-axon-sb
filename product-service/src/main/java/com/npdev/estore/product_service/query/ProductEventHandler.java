@@ -1,5 +1,6 @@
 package com.npdev.estore.product_service.query;
 
+import com.npdev.estore.core.event.ProductReservedEvent;
 import com.npdev.estore.product_service.core.event.ProductCreatedEvent;
 import com.npdev.estore.product_service.query.model.Product;
 import com.npdev.estore.product_service.query.repository.ProductRepository;
@@ -43,9 +44,22 @@ public class ProductEventHandler {
         // this can fail; if it does, an exception handler above will react
         productRepository.save(product);
 
-        if (true) {
+        if (false) {
             log.info("ProductEventHandler::Throwing an exception");
             throw new RuntimeException("Runtime exception");
         }
+    }
+
+    @EventHandler
+    public void on(ProductReservedEvent productReservedEvent) {
+        log.info("Handling ProductReservedEvent {}...", productReservedEvent);
+        Product product = productRepository
+                .findById(productReservedEvent.getProductId())
+                .orElseThrow(() -> new RuntimeException(
+                        String.format("Product %s not found", productReservedEvent.getProductId()))
+                );
+
+        product.setQuantity(product.getQuantity() - productReservedEvent.getQuantity());
+        productRepository.save(product);
     }
 }

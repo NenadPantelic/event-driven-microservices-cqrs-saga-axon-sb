@@ -1,6 +1,7 @@
 package com.npdev.estore.product_service;
 
 import com.npdev.estore.product_service.command.interceptor.CreateProductCommandInterceptor;
+import com.npdev.estore.product_service.config.AxonXstreamConfig;
 import com.npdev.estore.product_service.core.errorhandling.EventErrorHandler;
 import org.axonframework.commandhandling.CommandBus;
 import org.axonframework.config.EventProcessingConfigurer;
@@ -10,9 +11,11 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
 @EnableDiscoveryClient
+@Import({AxonXstreamConfig.class})
 public class ProductServiceApplication {
 
     public static void main(String[] args) {

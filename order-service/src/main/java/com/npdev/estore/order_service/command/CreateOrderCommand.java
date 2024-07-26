@@ -1,4 +1,4 @@
-package com.npdev.estore.order_service.command.dto.internal;
+package com.npdev.estore.order_service.command;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
