@@ -1,5 +1,6 @@
-package com.npdev.estore.product_service.command;
+package com.npdev.estore.product_service.command.controller;
 
+import com.npdev.estore.product_service.command.CreateProductCommand;
 import com.npdev.estore.product_service.command.dto.NewProduct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

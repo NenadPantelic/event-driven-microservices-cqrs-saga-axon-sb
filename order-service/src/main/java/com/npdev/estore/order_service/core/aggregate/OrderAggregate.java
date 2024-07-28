@@ -2,9 +2,11 @@ package com.npdev.estore.order_service.core.aggregate;
 
 import com.npdev.estore.order_service.command.ApproveOrderCommand;
 import com.npdev.estore.order_service.command.CreateOrderCommand;
+import com.npdev.estore.order_service.command.RejectOrderCommand;
 import com.npdev.estore.order_service.command.dto.internal.OrderStatus;
 import com.npdev.estore.order_service.core.event.OrderApprovedEvent;
 import com.npdev.estore.order_service.core.event.OrderCreatedEvent;
+import com.npdev.estore.order_service.core.event.OrderRejectedEvent;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
@@ -91,4 +93,19 @@ public class OrderAggregate {
         orderId = orderApprovedEvent.getOrderId();
         orderStatus = orderApprovedEvent.getOrderStatus();
     }
+
+    @CommandHandler
+    public void handle(RejectOrderCommand rejectOrderCommand) {
+        log.info("Handling RejectOrderCommand: {}", rejectOrderCommand);
+        OrderRejectedEvent orderRejectedEvent = new OrderRejectedEvent(
+                rejectOrderCommand.getOrderId(), rejectOrderCommand.getReason()
+        );
+        AggregateLifecycle.apply(orderRejectedEvent);
+    }
+
+    @EventSourcingHandler
+    public void on(OrderRejectedEvent orderRejectedEvent) {
+        orderStatus = orderRejectedEvent.getOrderStatus();
+    }
+
 }

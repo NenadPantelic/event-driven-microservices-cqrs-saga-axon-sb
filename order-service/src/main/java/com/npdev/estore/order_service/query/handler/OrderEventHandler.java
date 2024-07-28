@@ -3,6 +3,7 @@ package com.npdev.estore.order_service.query.handler;
 import com.npdev.estore.order_service.command.dto.internal.OrderStatus;
 import com.npdev.estore.order_service.core.event.OrderApprovedEvent;
 import com.npdev.estore.order_service.core.event.OrderCreatedEvent;
+import com.npdev.estore.order_service.core.event.OrderRejectedEvent;
 import com.npdev.estore.order_service.query.model.Order;
 import com.npdev.estore.order_service.query.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,16 @@ public class OrderEventHandler {
                         String.format("Order[id = %s] not found.", orderApprovedEvent.getOrderId()))
                 );
         order.setOrderStatus(OrderStatus.APPROVED);
+        orderRepository.save(order);
+    }
+
+    @EventHandler
+    public void on(OrderRejectedEvent orderRejectedEvent) {
+        Order order = orderRepository.findById(orderRejectedEvent.getOrderId())
+                .orElseThrow(() -> new RuntimeException(
+                        String.format("Order[id = %s] not found.", orderRejectedEvent.getOrderId()))
+                );
+        order.setOrderStatus(orderRejectedEvent.getOrderStatus());
         orderRepository.save(order);
     }
 }

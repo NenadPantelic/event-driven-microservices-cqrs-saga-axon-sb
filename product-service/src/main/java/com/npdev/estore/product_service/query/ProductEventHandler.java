@@ -1,5 +1,6 @@
 package com.npdev.estore.product_service.query;
 
+import com.npdev.estore.core.event.ProductReservationCanceledEvent;
 import com.npdev.estore.core.event.ProductReservedEvent;
 import com.npdev.estore.product_service.core.event.ProductCreatedEvent;
 import com.npdev.estore.product_service.query.model.Product;
@@ -8,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
+import org.axonframework.eventhandling.ResetHandler;
 import org.axonframework.messaging.interceptors.ExceptionHandler;
 import org.springframework.stereotype.Component;
 
@@ -61,5 +63,24 @@ public class ProductEventHandler {
 
         product.setQuantity(product.getQuantity() - productReservedEvent.getQuantity());
         productRepository.save(product);
+    }
+
+    @EventHandler
+    public void on(ProductReservationCanceledEvent productReservationCanceledEvent) {
+        log.info("Handling ProductReservationCanceledEvent {}...", productReservationCanceledEvent);
+        Product product = productRepository
+                .findById(productReservationCanceledEvent.getProductId())
+                .orElseThrow(() -> new RuntimeException(
+                        String.format("Product %s not found", productReservationCanceledEvent.getProductId()))
+                );
+
+        product.setQuantity(product.getQuantity() + productReservationCanceledEvent.getQuantity());
+        productRepository.save(product);
+    }
+
+    @ResetHandler
+    public void reset() {
+        log.info("Resetting event handling (before replay)...");
+        productRepository.deleteAll();
     }
 }

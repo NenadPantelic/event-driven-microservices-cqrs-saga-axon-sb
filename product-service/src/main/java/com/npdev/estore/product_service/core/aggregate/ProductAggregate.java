@@ -1,5 +1,7 @@
 package com.npdev.estore.product_service.core.aggregate;
 
+import com.npdev.estore.core.command.CancelProductReservationCommand;
+import com.npdev.estore.core.event.ProductReservationCanceledEvent;
 import com.npdev.estore.core.event.ProductReservedEvent;
 import com.npdev.estore.product_service.command.CreateProductCommand;
 import com.npdev.estore.product_service.core.event.ProductCreatedEvent;
@@ -17,7 +19,7 @@ import org.springframework.beans.BeanUtils;
 import java.math.BigDecimal;
 
 @Slf4j
-@Aggregate
+@Aggregate(snapshotTriggerDefinition = "productSnapshotTriggerDefinition")
 @NoArgsConstructor // required by Axon framework
 public class ProductAggregate {
 
@@ -56,7 +58,7 @@ public class ProductAggregate {
         // axon loads the aggregate object for us, no need to query it,
         // it will already contain the latest state
         if (quantity < reserveProductCommand.getQuantity()) {
-            throw new IllegalArgumentException("Insufficient number of item in stock.");
+            throw new IllegalArgumentException("Insufficient number of items in stock.");
         }
 
         ProductReservedEvent productReservedEvent = ProductReservedEvent.builder()
@@ -68,6 +70,19 @@ public class ProductAggregate {
 
         AggregateLifecycle.apply(productReservedEvent);
     }
+
+    @CommandHandler
+    public void handle(CancelProductReservationCommand cancelProductReservationCommand) {
+        log.info("Handling CancelProductReservationCommand {}...", cancelProductReservationCommand);
+        ProductReservationCanceledEvent productReservationCanceledEvent = ProductReservationCanceledEvent.builder()
+                .orderId(cancelProductReservationCommand.getOrderId())
+                .productId(cancelProductReservationCommand.getProductId())
+                .userId(cancelProductReservationCommand.getUserId())
+                .quantity(cancelProductReservationCommand.getQuantity())
+                .build();
+        AggregateLifecycle.apply(productReservationCanceledEvent);
+    }
+
 
     @EventSourcingHandler
     public void on(ProductCreatedEvent productCreatedEvent) {
@@ -84,5 +99,10 @@ public class ProductAggregate {
     @EventSourcingHandler
     public void on(ProductReservedEvent productReservedEvent) {
         quantity -= productReservedEvent.getQuantity();
+    }
+
+    @EventSourcingHandler
+    public void on(ProductReservationCanceledEvent productReservationCanceledEvent) {
+        quantity += productReservationCanceledEvent.getQuantity();
     }
 }

@@ -203,7 +203,6 @@ docker run --name axonserver -p 8024:8024 -p 8124:8124 -v /home/nenad/Documents/
           of the event<br>
           To roll back the propagated exception we should use a subscribing event processor
 
-
 ### SAGA
 
 #### Orchestration-based SAGA
@@ -211,11 +210,11 @@ docker run --name axonserver -p 8024:8024 -p 8124:8124 -v /home/nenad/Documents/
 1. Order controller
 2. Order aggregate
 3. Order saga
-   - Handle OrderCreatedEvent
-   - ReserveProductCommand -> Product service
-   - ProductReservedEvent <- Product service
-   - ProcessPaymentCommand -> Payment service
-   - PaymentProcessedEvent <- Payment microservice
+    - Handle OrderCreatedEvent
+    - ReserveProductCommand -> Product service
+    - ProductReservedEvent <- Product service
+    - ProcessPaymentCommand -> Payment service
+    - PaymentProcessedEvent <- Payment microservice
 
 Saga example:
 
@@ -265,3 +264,137 @@ public class OrderSaga {
 // to end Saga programatically
 // end()
 ```
+
+- Compensating transactions
+    - if we need to rollback transactions, we need to make compensating transactions to undo the changes my them:
+        1. rollback happens in the reverse order from the actual modifications
+        2. transactions that did not make any alterations do not need to be rolled back
+- on the command side, we do not delete the events from the store, we just add them (we add a new event when we make a
+  rollback)
+
+#### Deadlines
+
+- Deadline is an event that takes place in an absence of an event - e.g. if we expect that some event is published in
+  24hrs and if it's not, a deadline event can happen
+- can be used in Saga, as well as outside of Saga (can happen in aggregate as well)
+- triggers a state change or a command
+- is not source - not saved in an event store
+- triggered only once
+
+```java
+
+// SimpleDeadlineManager keeps deadlines stored in-memory, so if JVM restarts, those deadlines will be lost
+
+import org.springframework.context.annotation.Bean;
+
+@Bean
+public DeadlineManager deadlineManager(Configuration configuration,SpringTransactionManager transactionManager){
+        return SimpleDeadlineManager.builder()
+        .scopeAwareProvider(new ConfigurationScopeAwareProvider(configuration))
+        .transactionManager(transactionManager)
+        .build();
+        }
+
+// QuartzDeadlineManager stores deadlines in some persistent storage, meaning upon JVM restart those will not be lost
+// more suitable for longer deadlines e.g. 7 days
+@Bean
+public DeadlineManager deadlineManager(Schedule scheduler,
+        AxonConfiguration configuration,
+        SpringTransactionManager transactionManager,
+        Serializer serializer){
+        return QuartzDeadlineManager.builder()
+        .scopeAwareProvider(new ConfigurationScopeAwareProvider(configuration))
+        .serializer(serializer)
+        .transactionManager(transactionManager)
+        .scheduler(scheduler)
+        .build();
+        }
+
+```
+
+- Schedule a new deadline
+
+```java
+import org.springframework.beans.factory.annotation.Autowired;
+
+@Autowired
+private transient DeadlineManager deadlineManager;
+// ...
+
+        deadlineManager.schedule(Duration.of(2,ChronoUnit.DAYS),"deadline-name",productReservedEvent);
+```
+
+- Handle a deadline
+
+```java
+import org.axonframework.deadline.annotation.DeadlineHandler;
+
+@DeadlineHandler
+public void handlePaymentDeadline(ProductReservedEvent productReservedEvent){
+        // send a compensating command
+        }
+```
+
+#### Subscription queries
+
+- as the update propagation between the command and the query side is asynchronous, that means the changes are eventual
+- if we query the query side after we have sent a command, it may be it will take some time to propagate these changes
+- subscription query is a pattern in CQRS to first get an initial result and then the query side can send updates as
+  they are reflected (we subscribe to event changes)
+- in Saga, we can use this - when the first command is sent, we can fire a query right after it to get the initial
+  result, and after Saga is complete, we can emit the result
+  ![](images/cqrs.webp)
+
+#### Snapshots
+
+- if we want to replay the whole event store, in case there are a lot of events, it can a lot of time
+- an option to reduce that time is to take snapshots
+- snapshots are recorded states of aggregate, e.g. let's say we have the following situation:
+
+```
+Create a product - price $1
+Update its price - price $2
+Update its price - price $3
+Update its price - price $4
+```
+
+- We can make a snapshot and save the state of the product with price $4.
+- Notes:
+    - we can configure when to make a snapshot, e.g. every 4 events or at regular intervals
+    - a snapshot is an even by itself which is made synchronously and that does not prevent other events being made
+    - snapshot is the current state of an aggregate that is persisted by default (other options are possible)
+- when we have snapshots, a new aggregate is made based on that snapshot and later other incoming events are applied to
+  that aggregate
+
+Snapshotting:
+
+- regular intervals
+- after x number of events
+- when loading of events takes more than specified time
+
+```java
+
+import org.axonframework.spring.stereotype.Aggregate;
+
+@Bean(name = "productSnapshotTriggerDefinition")
+public SnapshotTriggerDefinition productSnapshotTriggerDefinition(Snapshotter snapshotter){
+        return new EventCountSnapshotTriggerDefinition(snapshotter,500);
+        }
+
+@Aggregate(snapshotTriggerDefinition = "productSnapshotTriggerDefinition")
+public class ProductAggregate {
+
+}
+```
+
+### Events replay
+
+- event is first stored in the event store and eventually that event is reflected into read database
+- replay of the events is useful and can be partial (from some point) or full (from the beginning); e.g. if you want to 
+populate new view table with all events that happened
+
+- Event replays are supported only with the Tracking Event Processor
+- Use `@DisallowReplay` to exclude `@EventHandler` methods during event replay
+- Stop the current Tracking Event Processor
+- `@ResetHandler` - called before the event replay (if an exception occurs here, an event replay will be canceled)
+- Sagas are (by default) not replayable
